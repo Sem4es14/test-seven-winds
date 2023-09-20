@@ -1,11 +1,12 @@
 package mobi.sevenwinds.app.author
 
 import mobi.sevenwinds.app.author.dto.responses.AuthorResponse
-import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
-import org.jetbrains.exposed.dao.IntIdTable
+import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.`java-time`.timestamp
+
 
 object AuthorTable : IntIdTable() {
     val name = varchar("name", 64)

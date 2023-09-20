@@ -2,7 +2,7 @@ package mobi.sevenwinds.app.author
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import mobi.sevenwinds.app.author.dto.requests.AuthorCreateRequest
+import mobi.sevenwinds.app.author.dto.reqests.AuthorCreateRequest
 import mobi.sevenwinds.app.author.dto.responses.AuthorResponse
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Instant

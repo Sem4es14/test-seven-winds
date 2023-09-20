@@ -9,5 +9,5 @@ data class BudgetRecordRequest(
     @Min(1) @Max(12) val month: Int,
     @Min(1) val amount: Int,
     val type: BudgetType,
-    @Min(1) val authorId: Int?
+    @Min(1) val authorId: Int? = null
 )

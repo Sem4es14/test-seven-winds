@@ -1,8 +1,10 @@
 package mobi.sevenwinds.app.budget
 
+import io.ktor.features.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import mobi.sevenwinds.app.author.AuthorEntity
+import mobi.sevenwinds.app.author.AuthorTable
 import mobi.sevenwinds.app.budget.dto.requests.BudgetRecordRequest
 import mobi.sevenwinds.app.budget.dto.requests.BudgetYearParam
 import mobi.sevenwinds.app.budget.dto.responses.BudgetRecordResponse
@@ -13,15 +15,15 @@ import org.jetbrains.exposed.sql.transactions.transaction
 object BudgetService {
     suspend fun addRecord(body: BudgetRecordRequest): BudgetRecordResponse = withContext(Dispatchers.IO) {
         transaction {
-            addLogger(StdOutSqlLogger)
-           // val author = findById(body.authorId!!) // todo check
-
             val entity = BudgetEntity.new {
                 year = body.year
                 month = body.month
                 amount = body.amount
                 type = body.type
-                this.author = AuthorEntity[1]
+                this.author = body.authorId?.let {
+                    AuthorEntity.findById(body.authorId)
+                        ?: throw NotFoundException("Author with id: {${body.authorId}} is not found")
+                }
             }
 
             return@transaction entity.toResponse()
@@ -30,17 +32,28 @@ object BudgetService {
 
     suspend fun getYearStats(param: BudgetYearParam): BudgetYearStatsResponse = withContext(Dispatchers.IO) {
         transaction {
-            addLogger(StdOutSqlLogger)
-
-            val query = BudgetTable
-                .select { BudgetTable.year eq param.year }
+            val query = if (param.author != null) {
+                BudgetTable
+                    .join(AuthorTable, JoinType.LEFT)
+                    .select {
+                        BudgetTable.year eq param.year and AuthorTable.name.lowerCase()
+                            .like("%${param.author.toLowerCase()}%")
+                    }
+            } else {
+                BudgetTable
+                    .select {
+                        BudgetTable.year eq param.year
+                    }
+            }
                 .orderBy(BudgetTable.month, SortOrder.ASC)
                 .orderBy(BudgetTable.amount, SortOrder.DESC)
-                .limit( param.offset)
+                .limit(param.limit, param.offset.toLong())
 
-            val total = BudgetTable
+            val total: Int = BudgetTable
+                .slice(BudgetTable.id.count())
                 .select { BudgetTable.year eq param.year }
-                .count().toInt()
+                .map { it[BudgetTable.id.count()] }
+                .first().toInt()
 
             val data = BudgetEntity.wrapRows(query).map { it.toResponse() }
 

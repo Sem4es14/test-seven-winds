@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 val ktor_version: String by project
 val kotlin_version: String by project
 val logback_version: String by project
+val exposed_version: String by project
 
 plugins {
     application
@@ -49,8 +50,10 @@ dependencies {
 
     implementation("org.postgresql:postgresql:42.2.12")
 
-    implementation("org.jetbrains.exposed:exposed:0.17.13")
-    implementation("org.jetbrains.exposed:exposed-java-time:0.30.2")
+    implementation("org.jetbrains.exposed:exposed-core:$exposed_version")
+    implementation("org.jetbrains.exposed:exposed-dao:$exposed_version")
+    implementation("org.jetbrains.exposed:exposed-jdbc:$exposed_version")
+    implementation("org.jetbrains.exposed:exposed-java-time:$exposed_version")
     implementation("com.zaxxer:HikariCP:2.7.8")
     implementation("org.flywaydb:flyway-core:5.2.4")
 

@@ -4,10 +4,10 @@ import mobi.sevenwinds.app.author.AuthorEntity
 import mobi.sevenwinds.app.author.AuthorTable
 import mobi.sevenwinds.app.budget.dto.enums.BudgetType
 import mobi.sevenwinds.app.budget.dto.responses.BudgetRecordResponse
-import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
-import org.jetbrains.exposed.dao.IntIdTable
+import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.dao.id.IntIdTable
 
 
 object BudgetTable : IntIdTable("budget") {
@@ -29,8 +29,7 @@ class BudgetEntity(id: EntityID<Int>) : IntEntity(id) {
 
     fun toResponse(): BudgetRecordResponse {
         return BudgetRecordResponse(
-            year, month, amount, type, null
- //           author?.toResponse()
+            year, month, amount, type, author?.toResponse()
         )
     }
 }
