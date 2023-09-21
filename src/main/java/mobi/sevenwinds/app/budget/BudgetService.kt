@@ -32,42 +32,62 @@ object BudgetService {
 
     suspend fun getYearStats(param: BudgetYearParam): BudgetYearStatsResponse = withContext(Dispatchers.IO) {
         transaction {
-            val query = if (param.author != null) {
-                BudgetTable
-                    .join(AuthorTable, JoinType.LEFT)
+
+            return@transaction BudgetYearStatsResponse(
+                total = getTotalItemsWithParam(param),
+                totalByType = getTotalByTypeOfRecordWithParam(param),
+                items = getBudgetRecordsWithParam(param)
+            )
+        }
+    }
+
+    private fun getBudgetRecordsWithParam(param: BudgetYearParam): List<BudgetRecordResponse> {
+        val itemsWithJoin = BudgetTable
+            .join(AuthorTable, joinType = JoinType.LEFT)
+
+        val items = getQueryWithParam(itemsWithJoin, param)
+            .orderBy(BudgetTable.month, SortOrder.ASC)
+            .orderBy(BudgetTable.amount, SortOrder.DESC)
+            .limit(param.limit, param.offset.toLong())
+
+        return BudgetEntity.wrapRows(items).map { it.toResponse() }
+    }
+
+    private fun getTotalItemsWithParam(param: BudgetYearParam): Int {
+        val totalQuery = BudgetTable
+            .join(AuthorTable, joinType = JoinType.LEFT)
+            .slice(BudgetTable.id.count())
+
+        return getQueryWithParam(totalQuery, param)
+            .map { it[BudgetTable.id.count()] }
+            .first().toInt()
+    }
+
+    private fun getTotalByTypeOfRecordWithParam(param: BudgetYearParam): Map<String, Int> {
+        val sumByTypeQuery = BudgetTable
+            .join(AuthorTable, joinType = JoinType.LEFT)
+            .slice(BudgetTable.amount.sum(), BudgetTable.type)
+
+        return getQueryWithParam(sumByTypeQuery, param)
+            .groupBy(BudgetTable.type)
+            .associate { it[BudgetTable.type].name to (it[BudgetTable.amount.sum()] ?: -1) }
+    }
+
+    private fun getQueryWithParam(fields: FieldSet, param: BudgetYearParam): Query {
+        val query = when {
+            param.author != null -> {
+                fields
                     .select {
                         BudgetTable.year eq param.year and AuthorTable.name.lowerCase()
                             .like("%${param.author.toLowerCase()}%")
                     }
-            } else {
-                BudgetTable
-                    .select {
-                        BudgetTable.year eq param.year
-                    }
             }
-                .orderBy(BudgetTable.month, SortOrder.ASC)
-                .orderBy(BudgetTable.amount, SortOrder.DESC)
-                .limit(param.limit, param.offset.toLong())
-
-            val total: Int = BudgetTable
-                .slice(BudgetTable.id.count())
-                .select { BudgetTable.year eq param.year }
-                .map { it[BudgetTable.id.count()] }
-                .first().toInt()
-
-            val data = BudgetEntity.wrapRows(query).map { it.toResponse() }
-
-            val sumByType = BudgetTable
-                .slice(BudgetTable.amount.sum(), BudgetTable.type)
-                .select { BudgetTable.year eq param.year }
-                .groupBy(BudgetTable.type)
-                .associate { it[BudgetTable.type].name to (it[BudgetTable.amount.sum()] ?: -1) }
-
-            return@transaction BudgetYearStatsResponse(
-                total = total,
-                totalByType = sumByType,
-                items = data
-            )
+            else -> {
+                fields
+                    .select { BudgetTable.year eq param.year }
+            }
         }
+
+        return query
     }
 }

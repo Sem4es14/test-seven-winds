@@ -10,7 +10,7 @@ import mobi.sevenwinds.app.author.dto.responses.AuthorResponse
 
 fun NormalOpenAPIRoute.author() {
     route("/author") {
-        route("/create").post<Unit, AuthorResponse, AuthorCreateRequest>(info("Создать автора")) { param, request ->
+        route("/create").post<Unit, AuthorResponse, AuthorCreateRequest>(info("Создать автора")) { _, request ->
             respond(AuthorService.createAuthor(request))
         }
     }

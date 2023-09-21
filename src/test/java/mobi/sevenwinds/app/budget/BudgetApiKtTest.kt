@@ -1,6 +1,9 @@
 package mobi.sevenwinds.app.budget
 
 import io.restassured.RestAssured
+import mobi.sevenwinds.app.author.AuthorTable
+import mobi.sevenwinds.app.author.dto.reqests.AuthorCreateRequest
+import mobi.sevenwinds.app.author.dto.responses.AuthorResponse
 import mobi.sevenwinds.app.budget.dto.enums.BudgetType
 import mobi.sevenwinds.app.budget.dto.requests.BudgetRecordRequest
 import mobi.sevenwinds.app.budget.dto.responses.BudgetRecordResponse
@@ -13,12 +16,15 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.Assert
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.Instant
+import kotlin.math.abs
 
 class BudgetApiKtTest : ServerTest() {
 
     @BeforeEach
     internal fun setUp() {
         transaction { BudgetTable.deleteAll() }
+        transaction { AuthorTable.deleteAll() }
     }
 
     @Test
@@ -42,6 +48,35 @@ class BudgetApiKtTest : ServerTest() {
                 Assert.assertEquals(105, response.totalByType[BudgetType.Приход.name])
             }
     }
+
+    @Test
+    fun testBudgetPaginationWithAuthor() {
+        createAuthor(AuthorCreateRequest("Robert Marlin"))
+        createAuthor(AuthorCreateRequest("Alex Bradley"))
+        createAuthor(AuthorCreateRequest("Bob Marley"))
+        createAuthor(AuthorCreateRequest("Elon Musk"))
+        addRecord(BudgetRecordRequest(2020, 5, 10, BudgetType.Приход))
+        addRecord(BudgetRecordRequest(2020, 5, 5, BudgetType.Приход))
+        addRecord(BudgetRecordRequest(2020, 5, 20, BudgetType.Приход, 1))
+        addRecord(BudgetRecordRequest(2020, 5, 30, BudgetType.Приход, 1))
+        addRecord(BudgetRecordRequest(2020, 5, 40, BudgetType.Приход, 4))
+        addRecord(BudgetRecordRequest(2020, 5, 30, BudgetType.Приход, 4))
+        addRecord(BudgetRecordRequest(2020, 1, 1, BudgetType.Расход, 4))
+
+        RestAssured.given()
+            .queryParam("limit", 3)
+            .queryParam("offset", 1)
+            .queryParam("author", "musk")
+            .get("/budget/year/2020/stats")
+            .toResponse<BudgetYearStatsResponse>().let { response ->
+                println("${response.total} / ${response.items} / ${response.totalByType}")
+
+                Assert.assertEquals(3, response.total)
+                Assert.assertEquals(2, response.items.size)
+                Assert.assertEquals(70, response.totalByType[BudgetType.Приход.name])
+            }
+    }
+
 
     @Test
     fun testStatsSortOrder() {
@@ -89,6 +124,16 @@ class BudgetApiKtTest : ServerTest() {
                 Assert.assertEquals(record.amount, response.amount)
                 Assert.assertEquals(record.type, response.type)
                 Assert.assertEquals(record.authorId, response.author?.authorId)
+            }
+    }
+
+    private fun createAuthor(request: AuthorCreateRequest) {
+        RestAssured.given()
+            .jsonBody(request)
+            .post("/author/create")
+            .toResponse<AuthorResponse>().let { response ->
+                Assert.assertEquals(request.name, response.name)
+                Assert.assertTrue(abs( Instant.now().toEpochMilli() - response.createOn.toEpochMilli()) < 1000)
             }
     }
 }
